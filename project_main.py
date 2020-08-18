@@ -13,6 +13,9 @@ def main():
     canvas = Canvas()
     canvas.set_canvas_title("Final Project")
 
+    # Hi this is test
+
+
     # TODO: your code here!
 
     canvas.mainloop()
