@@ -4,7 +4,7 @@ import os
 
 
 def main():
-    folder = os.path.join('games', '*.py')
+    folder = os.path.join('projects', '*.py')
 
     game_modules = {}
 
