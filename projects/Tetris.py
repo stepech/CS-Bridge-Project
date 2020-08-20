@@ -18,7 +18,7 @@ SNOWFLAKE_DIAMETER = 10
 
 points = 0
 
-def main():
+def play():
     canvas = Canvas(CANVAS_WIDTH, CANVAS_HEIGHT + 50)
     canvas.set_canvas_title("Tetris")
 
@@ -442,4 +442,4 @@ def score_board(canvas):
 
 
 if __name__ == '__main__':
-    main()
+    play()
