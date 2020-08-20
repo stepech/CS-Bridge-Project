@@ -1,6 +1,5 @@
 import requests
 import re
-from getpass import getpass
 
 """
 Štěpán's program to get stats from ed forum
@@ -13,7 +12,9 @@ def play():
 
     api_urls = {'login': 'https://us.edstem.org/api/token',
                 'new_thread': 'https://us.edstem.org/api/courses/968/threads',
-                'delete_thread': 'https://us.edstem.org/api/threads/'
+                'delete_thread': 'https://us.edstem.org/api/threads/',
+                'comment1':'https://us.edstem.org/api/threads/',
+                'comment2':'/comments'
                 }
     login_post = {"login": username, "password": password}
     headers = {}
@@ -26,19 +27,20 @@ def play():
             password = str(input("Please reenter your password > "))
             login_post = {"login": username, "password": password}
             r = s.post(api_urls['login'], json=login_post)
-        del password
+        del password  # Deletes password, just to make sure. It is no longer needed
 
-        for i in range(20):
+        for i in range(40):  # Makes space after password, so that you can't see your credentials
             print()
         print("Successfully signed in")
         token_setup = r.text.split('"')
         headers["x-token"] = token_setup[3]  # saves token with x-token key
         x = 1
-        while x != 0:
+        while x != 0:  # main menu
             print("Would you like to")
             print("1 - Read the forum")
             print("2 - Create new thread")
             print("3 - Delete my thread")
+            print("4 - Spam in comment section")
             print("0 - exit this program")
             x = int(input())
             if x == 1:
@@ -61,8 +63,24 @@ def play():
                         print("Your thread \""+threads[y-1]+'" was successfully deleted')
                     else:
                         print("There was some mistake during connection to server")
-
-
+            elif x == 4:
+                print("Choose -1 anywhere and the operation will be canceled")
+                message = input("What would you like to send: ")
+                amount = int(input("How many times: "))
+                r = s.get('https://us.edstem.org/api/courses/968/threads?limit=30&sort=date&order=desc',
+                          headers=headers)
+                info = r.json()
+                threads = info['threads']
+                titles = []
+                links = []
+                for i in range(len(threads)):
+                    titles.append(threads[i]['title'])
+                    links.append(threads[i]['id'])
+                    print(i + 1, ": ", titles[i])
+                victim = int(input("Which one would you like to spam: "))
+                if message != "-1" and amount >= 1 and victim >= 1:
+                    for i in range(amount):
+                        comment(s, headers, links[victim-1], message)
 
 
 def post_new_thread():
@@ -127,47 +145,62 @@ def post_new_thread():
 
 
 def read(s, headers):
-    amnt = str(input("How many threads would you like to display: "))
-    r = s.get('https://us.edstem.org/api/courses/968/threads?limit='+amnt+'&sort=date&order=desc', headers=headers)
-    website = r.json()
-    threads = website['threads']
-    links = []
-    titles = []
-    contents = []
-    response = 2
-    while response == 2:
+    response = 3
+    while response == 3:
+        amnt = str(input("How many threads would you like to display: "))
+        r = s.get('https://us.edstem.org/api/courses/968/threads?limit=' + amnt + '&sort=date&order=desc',
+                  headers=headers)
+        website = r.json()
+        threads = website['threads']
+        users = website['users']
+        names = {}
+        links = []
+        titles = []
+        contents = []
+        user_ids_thread = []
         print("Would you like to read:")
+        for i in range(len(users)):
+            names[users[i]['id']] = users[i]['name']
         for i in range(len(threads)):
             links.append(threads[i]['id'])
             titles.append(threads[i]['title'])
             contents.append(threads[i]['content'])
-            print(i+1, ": ", titles[i])
+            user_ids_thread.append(threads[i]['user_id'])
+            if user_ids_thread[i] == 0:
+                name = 'Anonymous'
+            else:
+                name = names[user_ids_thread[i]]
+
+            print(i+1, ": ", titles[i], "-by-", name)
         x = int(input("Choose thread you want to read, -1 to go back: "))
         if x == -1:
             return s
         print('-------------------------------------------------------------')
         content = re.sub('<.*?>', '', contents[x-1])
+        content = content.replace('. ', '.\n')
         print(content)
         print('-------------------------------------------------------------')
-        while 1 <= response <= 3:
-            print("1 - Would you like to comment?")
-            print("2 - Would you like to read another thread?")
-            print("3 - Would you like to go to main menu?")
+        while 1 <= response <= 4:
+            print("1 - Would you like to read comments on this thread?")
+            print("2 - Would you like to comment?")
+            print("3 - Would you like to read another thread?")
+            print("4 - Would you like to go to main menu?")
             response = int(input())
-            if response == 3:
+            if response == 4:
                 return s
-            elif response == 1:
+            elif response == 2:
                 s = comment(s, headers, links[x-1])
                 response = 2
-            elif response == 2:
-                pass
+            elif response == 3:
+                break
+            elif response == 1:
+                s = read_comment(links[x-1], s, headers)
             else:
                 print("You've entered wrong number.")
 
 
+
 def comment(s, headers, link, message=""):
-    print(link)
-    print(headers)
     url = 'https://us.edstem.org/api/threads/'+str(link)+'/comments'
     if message == "":
         print("What would you like to write? Write -1 to return")
@@ -202,20 +235,31 @@ def delete_thread(s, headers):
     return threads, links
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def read_comment(link, s, headers):
+    r = s.get('https://us.edstem.org/api/threads/'+str(link)+'?view=1', headers=headers)
+    website = r.json()
+    question = website["question"]
+    answers = question['answers']
+    if len(answers) != 0:
+        users = website['users']
+        user_ids_to_name = {}
+        for i in range(len(users)):
+            user_ids_to_name[users[i]['id']] = users[i]['name']
+        user_ids_to_name[0] = 'Anonymous'
+        for i in range(len(answers)):
+            print("--------------------------------------------------------")
+            print("Comment made by", user_ids_to_name[answers[i]['user_id']])
+            print(answers[i]['document'])
+            if len(answers[i]['comments']) != 0:
+                comments = answers[i]['comments']
+                for j in range(len(comments)):
+                    print("#############")
+                    print("Subcomment made by", user_ids_to_name[comments[j]['user_id']])
+                    print(comments[j]['document'])
+    else:
+        print("Thread has no comments")
+    print("\n\n\n\n")
+    return s
 
 
 if __name__ == '__main__':
