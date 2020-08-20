@@ -20,6 +20,8 @@ def main():
 
     for name in game_modules.keys():
         print(name)
+    pick = input("Choose module you'd like to play: ")
+    game_modules[pick].play()
 
 
 if __name__ == '__main__':
