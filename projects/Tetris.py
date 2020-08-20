@@ -2,6 +2,7 @@
 This tetris doesn´t have rotations.
 
 """
+
 from graphics import Canvas
 import random
 import time
